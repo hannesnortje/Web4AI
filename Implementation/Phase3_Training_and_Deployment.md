@@ -120,7 +120,7 @@ Define comprehensive training configuration including LoRA hyperparameters, trai
    - Timestamped output directories for version tracking
 
    **B. Dataset File Paths:**
-   - List all 7 training JSONL files:
+   - List all 8 training JSONL files:
      - `./data/style_core.jsonl` (12K samples)
      - `./data/domain_patterns.jsonl` (8K samples)
      - `./data/process_framework.jsonl` (5K samples)
@@ -128,6 +128,7 @@ Define comprehensive training configuration including LoRA hyperparameters, trai
      - `./data/style_refactor.jsonl` (3K samples)
      - `./data/guardrails.jsonl` (2K samples)
      - `./data/tool_awareness.jsonl` (1K samples)
+     - `./data/reporting_protocol.jsonl` (3K samples)
    - Evaluation file: `./data/eval.jsonl` (2K samples, hold-out)
 
    **C. Training Arguments:**
@@ -232,7 +233,7 @@ Develop a comprehensive training script that orchestrates LoRA fine-tuning on M1
    - Set environment variables (e.g., TOKENIZERS_PARALLELISM)
 
    **C. Data Loading and Preparation:**
-   - Load all 7 JSONL training files using HuggingFace datasets library
+   - Load all 8 JSONL training files using HuggingFace datasets library
    - Concatenate datasets into single training dataset
    - Format samples: instruction + input + output structure
    - Tokenize all samples with appropriate padding and truncation
@@ -1236,10 +1237,10 @@ If any Ship Gate fails or canaries fail:
 ### 4.1 Connect RAG System
 
 **Objective:**  
-Verify that all three RAG tiers (ChromaDB, Redis Graph, SQLite) are operational and accessible for production runtime queries.
+Verify that all three RAG tiers (ChromaDB, SQLite Graph, SQLite) are operational and accessible for production runtime queries.
 
 **Requirements:**
-- RAG system set up in Phase 1 (534 PDCAs indexed)
+- RAG system set up in Phase 1 (1,157 PDCAs indexed)
 - All three tiers running and accessible
 - Network connectivity to RAG services
 
@@ -1249,33 +1250,41 @@ Verify that all three RAG tiers (ChromaDB, Redis Graph, SQLite) are operational 
    - Check ChromaDB persistent client can connect
    - Path: `./chroma_db/` or configured path
    - Verify collections exist:
-     - `pdca_historical` (534 PDCAs, ~2,670 chunks)
-     - `components` (3,477 TypeScript files)
+     - `pdca_historical` (1,157 PDCAs, ~5,785 chunks)
+     - `components` (5,372 TypeScript files)
      - `process_docs` (238 process documents)
      - `tool_examples` (12K tool examples)
+     - `process_framework` (20 trainAI behavioral topics)
    - Test query: Semantic search for sample PDCA
    - Verify query returns results within acceptable time (~500ms)
+   - Verify all content marked as `trained_in_adapter: false` initially
 
-2. **Verify Redis Graph Accessibility**
-   - Check Redis server is running: `redis-cli ping` should return PONG
-   - Verify Redis Graph module loaded
-   - Check breadcrumb_graph exists with 534 nodes
-   - Test query: Walk breadcrumb chain from sample PDCA
-   - Verify graph traversal works (~10ms)
-
-3. **Verify SQLite Accessibility**
+2. **Verify SQLite Graph Accessibility**
    - Check SQLite database file exists: `./pdca_timeline.db`
-   - Connect to database and verify pdca_timeline table exists
-   - Check row count matches expected (534 PDCAs)
-   - Test query: Date-range query for PDCAs
+   - Verify SQLite Graph schema is created (pdcas and pdca_relationships tables)
+   - Check pdcas table exists with 1,157 nodes
+   - Check pdca_relationships table exists with extracted breadcrumb relationships
+   - Test query: Walk breadcrumb chain from sample PDCA using recursive CTEs
+   - Test query: Find predecessors and successors for sample PDCA
+   - Verify graph traversal works (~10ms)
+   - Verify all PDCA nodes have `trained_in_adapter: false` initially
+
+3. **Verify SQLite Temporal Accessibility**
+   - Check SQLite database file exists: `./pdca_timeline.db`
+   - Connect to database and verify pdcas table exists
+   - Check row count matches expected (1,157 PDCAs)
+   - Test query: Date-range query for PDCAs using timestamp filtering
    - Verify temporal query works (~5ms)
+   - Verify all temporal data has `trained_in_adapter: false` initially
 
 4. **Test Hybrid Retrieval**
    - Perform end-to-end RAG query:
-     - Semantic search on ChromaDB
-     - Graph expansion on Redis
-     - Temporal filtering on SQLite
+     - Semantic search on ChromaDB (pdca_historical collection)
+     - Graph expansion on SQLite Graph (predecessor/successor navigation)
+     - Temporal filtering on SQLite (date-range queries)
+     - TrainAI topic retrieval from process_framework collection
    - Verify all three tiers work together
+   - Verify training markers are accessible for tracking
    - Total hybrid query time should be under 1 second
 
 **Expected Output:**
@@ -1286,14 +1295,72 @@ Verify that all three RAG tiers (ChromaDB, Redis Graph, SQLite) are operational 
 - RAG system ready for production runtime queries
 
 **Validation:**
-- [ ] ChromaDB accessible and all collections present
-- [ ] Redis server running and responding to pings
-- [ ] Redis Graph accessible with 534 nodes
-- [ ] SQLite database accessible with pdca_timeline table
+- [ ] ChromaDB accessible and all collections present:
+  - [ ] pdca_historical (1,157 PDCAs, ~5,785 chunks)
+  - [ ] components (5,372 TypeScript files)
+  - [ ] process_docs (238 process documents)
+  - [ ] tool_examples (12K tool examples)
+  - [ ] process_framework (20 trainAI behavioral topics)
+- [ ] SQLite database accessible with pdcas and pdca_relationships tables
+- [ ] SQLite Graph accessible with 1,157 nodes and extracted relationships
+- [ ] SQLite temporal database accessible with pdcas table
 - [ ] Test semantic query successful (~500ms)
 - [ ] Test graph traversal successful (~10ms)
 - [ ] Test temporal query successful (~5ms)
+- [ ] Test trainAI topic retrieval successful
+- [ ] All content marked as `trained_in_adapter: false` initially
+- [ ] Training markers accessible for tracking
 - [ ] Hybrid retrieval test successful (<1 second)
+
+---
+
+### 4.1.5 Verify Training Markers
+
+**Objective:**  
+Verify that all content in the RAG system has proper training markers (`trained_in_adapter`, `training_batch`, `training_date`) for tracking what has been used for LoRA training.
+
+**Requirements:**
+- All RAG collections accessible
+- Understanding of training marker metadata structure
+- Ability to query metadata fields
+
+**Implementation Tasks:**
+
+1. **Verify ChromaDB Training Markers**
+   - Query all collections for metadata fields:
+     - `trained_in_adapter: false` (initial state)
+     - `training_batch: ""` (empty initially)
+     - `training_date: ""` (empty initially)
+   - Verify all content starts with `trained_in_adapter: false`
+   - Confirm metadata fields are present and properly formatted
+
+2. **Verify SQLite Training Markers**
+   - Query pdcas table for training marker fields
+   - Verify all 1,157 PDCAs have `trained_in_adapter: false` initially
+   - Confirm `training_batch` and `training_date` fields exist
+   - Verify fields are properly indexed for efficient querying
+
+3. **Test Training Marker Updates**
+   - Simulate marking content as trained:
+     - Update `trained_in_adapter: true`
+     - Set `training_batch: "batch_001"`
+     - Set `training_date: "2025-01-01"`
+   - Verify updates persist correctly
+   - Test querying for trained vs untrained content
+
+**Expected Output:**
+- All content initially marked as `trained_in_adapter: false`
+- Training marker fields present in all collections
+- Ability to update and query training status
+- Proper metadata structure for tracking
+
+**Validation:**
+- [ ] All ChromaDB collections have training marker metadata
+- [ ] All SQLite records have training marker fields
+- [ ] Initial state: `trained_in_adapter: false` for all content
+- [ ] Training markers can be updated successfully
+- [ ] Queries can filter by training status
+- [ ] Metadata structure is consistent across all collections
 
 ---
 
@@ -1535,9 +1602,10 @@ Execute smoke tests to validate end-to-end production functionality across three
 
 - [ ] Ollama server running and accessible
 - [ ] RAG systems connected and operational:
-  - [ ] ChromaDB accessible with all collections
-  - [ ] Redis Graph accessible with breadcrumb data
+  - [ ] ChromaDB accessible with all collections (including process_framework)
+  - [ ] SQLite Graph accessible with breadcrumb data and relationships
   - [ ] SQLite accessible with timeline data
+  - [ ] Training markers verified and accessible
 - [ ] ToolAwarePromptBuilder configured and tested
 - [ ] Smoke tests passed:
   - [ ] Trained knowledge test (<200ms) ✓
@@ -1585,7 +1653,7 @@ Execute smoke tests to validate end-to-end production functionality across three
 
 ### Step 4: Production Deployment
 - [ ] Ollama server running and accessible
-- [ ] RAG systems connected (ChromaDB + Redis + SQLite)
+- [ ] RAG systems connected (ChromaDB + SQLite Graph + SQLite)
 - [ ] ToolAwarePromptBuilder configured
 - [ ] All smoke tests passed (trained/RAG/tool queries)
 - [ ] System ready for production traffic

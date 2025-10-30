@@ -9,7 +9,7 @@
 
 ## Overview
 
-Phase 4 transforms the deployed model into a self-improving system. It establishes production monitoring, implements the nightly evening training loop for incremental learning, optimizes RAG parameters and caching, and creates comprehensive documentation for operations. This phase is ongoing, with the system continuously learning from daily work and improving every night.
+Phase 4 transforms the deployed model into a self-improving system. It establishes production monitoring, implements the nightly evening training loop for incremental learning, optimizes three-tier RAG parameters (ChromaDB + SQLite Graph + SQLite) and caching, and creates comprehensive documentation for operations. This phase is ongoing, with the system continuously learning from daily work and improving every night.
 
 ---
 
@@ -21,7 +21,7 @@ Before starting Phase 4, ensure Phase 3 is complete:
 - [ ] Model deployed to production (`web4-agent:latest`)
 - [ ] All quality gates passed
 - [ ] Smoke tests validated
-- [ ] RAG systems operational
+- [ ] Three-tier RAG systems operational (ChromaDB + SQLite Graph + SQLite)
 - [ ] Ollama server running
 
 ---
@@ -54,8 +54,10 @@ Establish comprehensive production monitoring to track system health, collect pe
 - RAG hit rates:
   - History: 10-20% (validates selective usage)
   - Tools: ~30% (validates hybrid architecture)
+  - TrainAI topics: 5-10% (validates process framework usage)
 - Error rate: < 5%
 - Query distribution: 50-60% pure trained (Training-First validation)
+- Collection health: All 5 collections accessible and responsive
 
 ### 1.1 Production Monitoring Dashboard
 
@@ -86,12 +88,13 @@ Establish comprehensive production monitoring to track system health, collect pe
 
 4. **Create Report Generator**
    - Tabular display of last 7 days summary
-   - Column format: Date, Queries, Avg Latency, RAG History %, RAG Tools %, Error %
+   - Column format: Date, Queries, Avg Latency, RAG History %, RAG Tools %, TrainAI %, Error %
    - Target validation section comparing against production targets
    - Status indicators (✓ or ⚠️) for each metric category
    - Response time validation (< 2500ms)
-   - RAG hit rate validation (10-25% history, 25-35% tools)
+   - RAG hit rate validation (10-20% history, 25-35% tools, 5-10% TrainAI)
    - Error rate validation (< 5%)
+   - Collection health validation (all 5 collections accessible)
 
 5. **Set Up Dashboard Execution**
    - Make monitoring script executable
@@ -106,10 +109,10 @@ Production Monitoring Report
 =============================================================
 
 Last 7 Days Summary:
-Date         Queries    Avg Latency    RAG History %  RAG Tools %    Error %   
------------------------------------------------------------------------------------------------
-2025-10-28   1,234      2,050ms        15.3%          28.7%          2.1%      
-2025-10-27   1,187      2,123ms        14.8%          29.2%          1.8%      
+Date         Queries    Avg Latency    RAG History %  RAG Tools %    TrainAI %  Error %   
+----------------------------------------------------------------------------------------------------
+2025-10-28   1,234      2,050ms        15.3%          28.7%          7.2%       2.1%      
+2025-10-27   1,187      2,123ms        14.8%          29.2%          6.8%       1.8%      
 ...
 
 =============================================================
@@ -124,11 +127,20 @@ Response Time:
 RAG Hit Rates:
   History: 15.3% (target: 10-20%)
   Tools: 28.7% (target: ~30%)
+  TrainAI: 7.2% (target: 5-10%)
   Status: ✓
 
 Error Rate:
   Current: 2.1%
   Target: <5%
+  Status: ✓
+
+Collection Health:
+  pdca_historical: ✓ (1,157 PDCAs, ~5,785 chunks)
+  components: ✓ (5,372 TypeScript files)
+  process_docs: ✓ (238 process documents)
+  tool_examples: ✓ (12K tool examples)
+  process_framework: ✓ (20 trainAI topics)
   Status: ✓
 ```
 
@@ -147,10 +159,12 @@ Error Rate:
 
 1. **Create Query Categorization Logic**
    - Implement query categorization based on RAG usage:
-     - "Pure Trained": No RAG access (history=False, tools=False)
-     - "Trained + Tools": Tools RAG only (history=False, tools=True)
-     - "Trained + History": History RAG only (history=True, tools=False)
-     - "Trained + Both": Both RAG types (history=True, tools=True)
+     - "Pure Trained": No RAG access (history=False, tools=False, trainai=False)
+     - "Trained + Tools": Tools RAG only (history=False, tools=True, trainai=False)
+     - "Trained + History": History RAG only (history=True, tools=False, trainai=False)
+     - "Trained + TrainAI": TrainAI topics only (history=False, tools=False, trainai=True)
+     - "Trained + Graph": SQLite Graph navigation (graph=True)
+     - "Trained + Multiple": Multiple RAG types (history=True, tools=True, trainai=True)
 
 2. **Build Distribution Analyzer**
    - Query production metrics database
@@ -182,7 +196,9 @@ Query Type Distribution (Today)
 Pure Trained        : 1,234 ( 55.2%)
 Trained + Tools     :   654 ( 29.2%)
 Trained + History   :   289 ( 12.9%)
-Trained + Both      :    60 (  2.7%)
+Trained + TrainAI   :    45 (  2.0%)
+Trained + Graph     :    12 (  0.5%)
+Trained + Multiple  :     3 (  0.2%)
 
 Total Queries: 2,237
 
@@ -279,6 +295,8 @@ User Satisfaction Rate (7 days): 87.3% (124/142)
      - Use first 2000 characters for embedding generation
      - Create unique document ID from filename stem
      - Store in daily_buffer collection
+     - **TrainAI topic detection**: Check if PDCA references trainAI behavioral topics
+     - **Cross-reference**: Link to process_framework collection if relevant
 
 4. **Create Metadata Structure**
    - For each indexed PDCA, store metadata:
@@ -461,6 +479,8 @@ Implement automated nightly training loop that incrementally learns from daily w
    - Count updated items
    - Log update completion
    - Handle errors gracefully
+   - **Cross-collection validation**: Verify training markers are consistent across all collections
+   - **SQLite Graph update**: Update training markers in SQLite Graph relationships table
 
 9. **Build Buffer Archive and Cleanup System**
    - Get all items from daily_buffer
@@ -705,7 +725,7 @@ Improvement Rate: 85.0%
 
 ### Objective
 
-Fine-tune RAG query parameters for optimal performance, implement caching for frequently accessed content, and create comprehensive documentation and training materials for long-term operations.
+Fine-tune three-tier RAG query parameters (ChromaDB + SQLite Graph + SQLite) for optimal performance, implement caching for frequently accessed content, and create comprehensive documentation and training materials for long-term operations.
 
 ### Requirements
 
@@ -737,7 +757,9 @@ Fine-tune RAG query parameters for optimal performance, implement caching for fr
      - 3 results: Balanced context (recommended)
      - 5 results: Rich context, more comprehensive
    - For each configuration:
-     - Execute test query
+     - Execute test query across all 5 collections
+     - Test ChromaDB collections (pdca_historical, components, process_docs, tool_examples, process_framework)
+     - Test SQLite Graph relationship queries
      - Measure relevance score (keyword matching)
      - Calculate context-to-noise ratio
      - Track response time
@@ -1003,7 +1025,7 @@ Cache Performance:
 ### Validation
 - [ ] Production stable (monitored metrics healthy)
 - [ ] Response times optimal (weighted avg ~2100ms)
-- [ ] RAG hit rates validated (10-20% history, 30% tools)
+- [ ] RAG hit rates validated (10-20% history, 30% tools, 5-10% TrainAI)
 - [ ] Evening loop running nightly (canary protected)
 - [ ] Model improving daily (nightly training working)
 - [ ] Team trained and confident
@@ -1017,7 +1039,7 @@ Cache Performance:
 
 ✓ Production stable (monitored metrics healthy)  
 ✓ Response times optimal (weighted avg ~2100ms)  
-✓ RAG hit rates validated (10-20% history, 30% tools)  
+✓ RAG hit rates validated (10-20% history, 30% tools, 5-10% TrainAI)  
 ✓ Evening loop running nightly (canary protected)  
 ✓ Model improving daily (nightly training working)  
 ✓ Team trained and confident  
