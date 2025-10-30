@@ -1,13 +1,13 @@
 # Phase 1: Setup & RAG Bootstrap - Implementation Roadmap
 
 **Duration:** Flexible (1-2 weeks typical)  
-**Goal:** Establish complete three-tier RAG system with all 907 PDCAs indexed and validated
+**Goal:** Establish complete three-tier RAG system with all 1,157 PDCAs indexed and validated
 
 ---
 
 ## Overview
 
-Phase 1 establishes the foundation for the entire training pipeline by creating a three-tier RAG system (ChromaDB + Redis Graph + SQLite) and indexing all source data. This phase is critical because RAG becomes the single source of truth for all subsequent training sample generation.
+Phase 1 establishes the foundation for the entire training pipeline by creating a three-tier RAG system (ChromaDB + SQLite Graph + SQLite) and indexing all source data. This phase is critical because RAG becomes the single source of truth for all subsequent training sample generation.
 
 **Key Philosophy:** This document describes WHAT to implement, not HOW to code it. Each step outlines objectives, requirements, expected outcomes, and validation criteria. Implementation details are left to the builder.
 
@@ -17,11 +17,11 @@ Phase 1 establishes the foundation for the entire training pipeline by creating 
 
 Before starting Phase 1, ensure you have:
 
-- [ ] **Hardware:** M1 Mac with 32GB RAM (or equivalent)
-- [ ] **OS:** macOS, Linux, or Windows with WSL2
-- [ ] **Access:** Web4Articles repository at `/Users/Shared/Workspaces/2cuGitHub/Web4Articles`
-- [ ] **Account:** HuggingFace account (free tier sufficient, for base model download later)
-- [ ] **Time:** 1-2 weeks allocated (full-time vs part-time)
+- [x] **Hardware:** M1 Mac with 32GB RAM (or equivalent)
+- [x] **OS:** macOS, Linux, or Windows with WSL2
+- [x] **Access:** Web4Articles repository at `/Users/Shared/Workspaces/2cuGitHub/Web4Articles`
+- [x] **Account:** HuggingFace account (free tier sufficient, for base model download later)
+- [x] **Time:** 1-2 weeks allocated (full-time vs part-time)
 
 ---
 
@@ -45,9 +45,9 @@ Before starting Phase 1, ensure you have:
 3. Verify installation by checking version output
 
 **Validation:**
-- [ ] Python 3.10 or higher installed
-- [ ] `python3 --version` shows correct version (3.10.x or higher)
-- [ ] Can create virtual environments with `python3 -m venv`
+- [x] Python 3.10 or higher installed
+- [x] `python3 --version` shows correct version (3.11.14)
+- [x] Can create virtual environments with `python3 -m venv`
 
 ---
 
@@ -67,9 +67,9 @@ Before starting Phase 1, ensure you have:
 4. Stop server if testing (will be used later in Phase 3-4)
 
 **Validation:**
-- [ ] Ollama installed successfully
-- [ ] `ollama --version` shows version number
-- [ ] Ollama server can start without errors
+- [x] Ollama installed successfully
+- [x] `ollama --version` shows version number
+- [x] Ollama server can start without errors
 
 ---
 
@@ -86,60 +86,67 @@ Before starting Phase 1, ensure you have:
 1. Create Python virtual environment in project directory
 2. Activate virtual environment
 3. Install ChromaDB via pip (version 0.4.18 specifically)
-4. Install sentence-transformers for embedding generation (version 2.2.2)
+4. Install sentence-transformers for embedding generation (version 3.0.1)
 5. Test import to verify installation
 
 **Validation:**
-- [ ] Virtual environment created and activated
-- [ ] ChromaDB installed successfully
-- [ ] Import test passes without errors
-- [ ] sentence-transformers library available
+- [x] Virtual environment created and activated
+- [x] ChromaDB installed successfully
+- [x] Import test passes without errors
+- [x] sentence-transformers library available
 
 ---
 
-### 1.4 Install Redis + RedisGraph
+### 1.4 Install Redis (Optional - for Caching)
 
-**Objective:** Set up Redis server with RedisGraph module for breadcrumb navigation graph database.
+**Objective:** Set up Redis server for optional caching layer to improve query performance.
 
 **Requirements:**
-- Redis server running and accessible on localhost:6379
-- RedisGraph module loaded (typically via Redis Stack)
-- Python Redis clients installed (redis, redisgraph)
+- Redis server running and accessible on localhost:6379 (optional)
+- Python Redis client installed (redis)
+- Note: RedisGraph is no longer available in latest Redis Stack (2024)
 
 **Implementation Tasks:**
-1. Install Redis server appropriate for your OS
-2. Install Redis Stack (includes RedisGraph module)
-3. Start Redis server and ensure it runs on system boot
-4. Verify Redis responds to ping command
-5. Install Python Redis clients in virtual environment
-6. Test connection from Python
+1. Install Redis server appropriate for your OS (optional)
+2. Start Redis server and ensure it runs on system boot (optional)
+3. Verify Redis responds to ping command (optional)
+4. Install Python Redis client in virtual environment
+5. Test connection from Python (optional)
+
+**Alternative: SQLite Graph Solution**
+- **Primary Graph Database:** SQLite-based graph implementation (see Step 2.1)
+- **Benefits:** No external dependencies, ACID compliance, fast performance
+- **Location:** `scripts/sqlite_graph.py` provides complete graph functionality
 
 **Validation:**
-- [ ] Redis server running (`redis-cli ping` returns PONG)
-- [ ] RedisGraph module loaded (check with Redis Stack)
-- [ ] Python Redis clients installed (redis==5.0.1, redisgraph==2.5.1)
-- [ ] Can connect and execute basic graph commands from Python
+- [x] Redis server running (`redis-cli ping` returns PONG) - Optional
+- [x] Python Redis client installed (redis==5.0.1) - Optional
+- [x] Can connect and execute basic commands from Python - Optional
+- [x] SQLite graph implementation available (`scripts/sqlite_graph.py`)
 
 ---
 
 ### 1.5 Verify SQLite
 
-**Objective:** Confirm SQLite is available for temporal query database.
+**Objective:** Confirm SQLite is available for both temporal queries and graph database functionality.
 
 **Requirements:**
 - SQLite 3.x available (comes with Python standard library)
 - Can import `sqlite3` module
 - Can create and query databases
+- Support for recursive CTEs (for graph path finding)
 
 **Implementation Tasks:**
 1. Verify SQLite is available via Python import
 2. Check SQLite version (should be 3.x.x)
-3. Optionally create test database to confirm functionality
+3. Test recursive CTE functionality for graph operations
+4. Optionally create test database to confirm functionality
 
 **Validation:**
-- [ ] SQLite available (should show version 3.x.x)
-- [ ] Can import `sqlite3` module
-- [ ] Can create and query test databases
+- [x] SQLite available (version 3.50.4)
+- [x] Can import `sqlite3` module
+- [x] Can create and query test databases
+- [x] Recursive CTE support verified (for graph path finding)
 
 ---
 
@@ -149,21 +156,21 @@ Before starting Phase 1, ensure you have:
 
 **Requirements:**
 - Web4Articles repository accessible at specified path
-- Exactly 907 PDCA files present (525 in project.journal, 382 elsewhere)
-- Approximately 6,530 TypeScript files present
+- Exactly 1,157 PDCA files present (618 in project.journal, 539 elsewhere)
+- Approximately 5,372 TypeScript files present (excluding node_modules)
 
 **Implementation Tasks:**
 1. Navigate to repository location
 2. Verify directory structure exists
-3. Count PDCA files (should be 907 total)
-4. Count TypeScript files (*.ts, *.tsx) across repository (should be ~6,530)
+3. Count PDCA files (should be 1,157 total)
+4. Count TypeScript files (*.ts, *.tsx) across repository excluding node_modules (should be ~5,372)
 5. Verify read permissions on all files
 
 **Validation:**
-- [ ] Web4Articles repository accessible
-- [ ] 907 PDCA files found (exact count)
-- [ ] ~6,530 TypeScript files found (approximate)
-- [ ] Can read sample files without permission errors
+- [x] Web4Articles repository accessible
+- [x] 1,157 PDCA files found (exact count)
+- [x] ~5,372 TypeScript files found (approximate, excluding node_modules)
+- [x] Can read sample files without permission errors
 
 ---
 
@@ -203,9 +210,9 @@ LLM_Training/
 ```
 
 **Validation:**
-- [ ] All directories created
-- [ ] Directory structure matches expected layout
-- [ ] Write permissions confirmed for all directories
+- [x] All directories created
+- [x] Directory structure matches expected layout
+- [x] Write permissions confirmed for all directories
 
 ---
 
@@ -221,7 +228,7 @@ LLM_Training/
 **Implementation Tasks:**
 1. Create `requirements.txt` file with the following dependency categories:
    - **Core ML Libraries:** transformers (4.36.0), peft (0.7.1), torch (2.1.2), accelerate (0.25.0), bitsandbytes (0.41.3)
-   - **Vector DB & Graph:** chromadb (0.4.18), sentence-transformers (2.2.2), redis (5.0.1), redisgraph (2.5.1)
+   - **Vector DB & Graph:** chromadb (0.4.18), sentence-transformers (3.0.1), redis (5.0.1), ollama (0.6.0) - Optional
    - **Data Processing:** datasets (2.15.0), jsonschema (4.20.0), tqdm (4.66.1)
    - **Utilities:** python-dotenv (1.0.0), pyyaml (6.0.1)
 
@@ -230,17 +237,17 @@ LLM_Training/
 4. Check for any version conflicts or warnings
 
 **Validation:**
-- [ ] All packages installed without errors
-- [ ] Import verification passes for key libraries (transformers, peft, torch, chromadb, redis, redisgraph)
-- [ ] No version conflicts reported
-- [ ] All specified versions match installed versions
+- [x] All packages installed without errors
+- [x] Import verification passes for key libraries (transformers, peft, torch, chromadb, redis - optional)
+- [x] No version conflicts reported
+- [x] All specified versions match installed versions
 
 ---
 
 ## Step 2: RAG System Bootstrap
 
-**Estimated Time:** 4-8 hours (mostly indexing time)  
-**Goal:** Index all 907 PDCAs, 6,530 TypeScript files, 238 process docs, and 12K tool examples
+**Estimated Time:** 5-10 hours (mostly indexing time)  
+**Goal:** Index all 1,157 PDCAs, 5,372 TypeScript files, 238 process docs, and 12K tool examples
 
 ### 2.1 Create Initial Indexing Script
 
@@ -249,7 +256,7 @@ LLM_Training/
 **Script Location:** `scripts/initial_indexing.py`
 
 **Requirements:**
-- Index 534 PDCAs into all three tiers (ChromaDB, Redis Graph, SQLite)
+- Index 1,157 PDCAs into all three tiers (ChromaDB, SQLite Graph, SQLite)
 - Apply PDCA-aware adaptive chunking (preserve section boundaries)
 - Generate 768-dimensional embeddings using sentence-transformers
 - Extract metadata (15+ fields) from PDCA filenames and content
@@ -287,10 +294,10 @@ LLM_Training/
 - **Error Handling:** If filename doesn't match pattern, use defaults and file mtime
 
 **C. PDCA Indexing Function**
-- **Purpose:** Index all 534 PDCAs into three-tier RAG system
+- **Purpose:** Index all 1,157 PDCAs into three-tier RAG system
 - **Steps:**
   1. Initialize ChromaDB collection `pdca_historical` (delete existing if present)
-  2. Find all `*.pdca.md` files in Web4Articles (should be exactly 534)
+  2. Find all `*.pdca.md` files in Web4Articles (should be exactly 1,157)
   3. For each PDCA:
      - Read file content
      - Extract metadata from filename
@@ -303,14 +310,14 @@ LLM_Training/
        - `training_batch` (empty string initially)
        - `training_date` (empty string initially)
      - Insert record into SQLite `pdcas` table with temporal metadata
-     - Create node in Redis Graph with PDCA properties
+     - Create node in SQLite Graph using `sqlite_graph.py` module
   4. Report total PDCAs indexed and total chunks created
 
 **D. TypeScript File Indexing Function**
-- **Purpose:** Index 3,477 TypeScript component files by layer and pattern
+- **Purpose:** Index 5,372 TypeScript component files by layer and pattern
 - **Steps:**
   1. Initialize ChromaDB collection `components` (delete existing if present)
-  2. Find all `*.ts` and `*.tsx` files in Web4Articles
+  2. Find all `*.ts` and `*.tsx` files in Web4Articles (excluding node_modules)
   3. For each TypeScript file:
      - Read file content
      - Detect layer from path (/layer2/, /layer3/, /layer5/)
@@ -331,8 +338,8 @@ LLM_Training/
 - **Purpose:** Index 12K IDE-specific tool examples for runtime injection
 - **Steps:**
   1. Initialize ChromaDB collection `tool_examples` (delete existing if present)
-  2. Read tool example files: `data/tool_core.jsonl` (10K), `data/tool_neg.jsonl` (2K)
-  3. For each line in JSONL files:
+  2. Check for tool example files: `data/tool_core.jsonl` (10K), `data/tool_neg.jsonl` (2K)
+  3. If files exist, for each line in JSONL files:
      - Parse JSON to extract tool example
      - Generate embedding from instruction field
      - Add to ChromaDB with metadata:
@@ -340,13 +347,13 @@ LLM_Training/
        - `tool_ecosystem` (continue, cursor, custom)
        - `usage_pattern` (simple, intermediate, complex, edge_case)
        - `is_negative` (true for tool_neg.jsonl examples)
-  4. Skip if tool example files don't exist (optional data)
-  5. Report total tool examples indexed
+  4. If files don't exist, create placeholder collection and report 0 examples
+  5. Report total tool examples indexed (0 if files missing)
 
 **F. SQLite Schema Creation**
-- **Purpose:** Create temporal query database for fast date/agent lookups
-- **Table:** `pdcas`
-- **Schema:**
+- **Purpose:** Create temporal query database and graph relationships for fast queries
+- **Tables:** `pdcas` and `pdca_relationships`
+- **PDCAs Table Schema:**
   - `id` TEXT PRIMARY KEY (pdca_id)
   - `agent_name` TEXT
   - `agent_role` TEXT
@@ -361,7 +368,15 @@ LLM_Training/
   - `quality_score` REAL
   - `verification_status` TEXT
   - `file_path` TEXT
-- **Indexes:** Create indexes on date, timestamp, agent_name, cmm_level for fast queries
+- **Graph Relationships Table Schema:**
+  - `id` INTEGER PRIMARY KEY AUTOINCREMENT
+  - `from_pdca_id` TEXT NOT NULL
+  - `to_pdca_id` TEXT NOT NULL
+  - `relationship_type` TEXT DEFAULT 'PRECEDES'
+  - `weight` REAL DEFAULT 1.0
+  - `metadata` TEXT (JSON metadata)
+  - `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+- **Indexes:** Create indexes on date, timestamp, agent_name, cmm_level, and graph relationships for fast queries
 
 **G. Main Orchestration**
 - **Purpose:** Coordinate all indexing operations
@@ -369,7 +384,7 @@ LLM_Training/
   1. Print banner and configuration
   2. Load embedding model (sentence-transformers/all-MiniLM-L6-v2)
   3. Initialize ChromaDB client (persistent storage at ./chroma_db)
-  4. Initialize Redis Graph client (connect to localhost:6379, graph name: breadcrumb_graph)
+  4. Initialize SQLite Graph client (using sqlite_graph.py module)
   5. Initialize SQLite (database at ./pdca_timeline.db, create schema)
   6. Run PDCA indexing (returns total chunks)
   7. Run TypeScript indexing (returns total files)
@@ -384,18 +399,18 @@ Web4 RAG System - Initial Indexing
 ============================================================
 Loading embedding model...
 Initializing ChromaDB...
-Connecting to Redis Graph...
+Initializing SQLite Graph...
 Initializing SQLite...
 
 === Indexing PDCAs ===
-Found 534 PDCA files
-Indexing PDCAs: 100%|████████| 534/534 [01:23<00:00]
-✓ Indexed 534 PDCAs into 2,670 chunks
+Found 1,157 PDCA files
+Indexing PDCAs: 100%|████████| 1157/1157 [02:45<00:00]
+✓ Indexed 1,157 PDCAs into 5,785 chunks
 
 === Indexing TypeScript Files ===
-Found 3,477 TypeScript files
-Indexing TypeScript: 100%|████████| 3477/3477 [12:45<00:00]
-✓ Indexed 3,477 TypeScript files
+Found 5,372 TypeScript files
+Indexing TypeScript: 100%|████████| 5372/5372 [15:20<00:00]
+✓ Indexed 5,372 TypeScript files
 
 === Indexing Tool Examples ===
 Indexing tool_core.jsonl: 100%|████████| 10000/10000 [08:20<00:00]
@@ -405,13 +420,13 @@ Indexing tool_neg.jsonl: 100%|████████| 2000/2000 [01:40<00:00]
 ============================================================
 INDEXING COMPLETE!
 ============================================================
-✓ PDCAs: 2,670 chunks from 534 files
-✓ TypeScript: 3,477 files
+✓ PDCAs: 5,785 chunks from 1,157 files
+✓ TypeScript: 5,372 files
 ✓ Tools: 12,000 examples
 
 ChromaDB: ./chroma_db
 SQLite: ./pdca_timeline.db
-Redis Graph: breadcrumb_graph
+SQLite Graph: pdca_relationships table
 ============================================================
 ```
 
@@ -421,16 +436,16 @@ Redis Graph: breadcrumb_graph
 - Log errors to console but continue processing
 - Commit SQLite transactions periodically (every 100 PDCAs)
 - Batch ChromaDB inserts for better performance
-- Total runtime: 4-8 hours depending on hardware
+- Total runtime: 5-10 hours depending on hardware
 
 **Validation After Running:**
 - [ ] Script runs without fatal errors
-- [ ] Approximately 2,670 PDCA chunks indexed (may vary ±10%)
-- [ ] 3,477 TypeScript files indexed (exact count)
+- [ ] Approximately 5,785 PDCA chunks indexed (may vary ±10%)
+- [ ] 5,372 TypeScript files indexed (exact count)
 - [ ] 12K tool examples indexed (if files exist)
 - [ ] ChromaDB directory created at `./chroma_db`
 - [ ] SQLite database file created at `./pdca_timeline.db`
-- [ ] Redis Graph contains nodes (verify with Redis CLI)
+- [ ] SQLite Graph contains nodes (verify with sqlite_graph.py test)
 ---
 
 ### 2.2 Verify Three-Tier Indexing
@@ -441,7 +456,7 @@ Redis Graph: breadcrumb_graph
 
 **Requirements:**
 - Test semantic search on ChromaDB
-- Test graph traversal on Redis Graph
+- Test graph traversal on SQLite Graph
 - Test temporal queries on SQLite
 - Validate metadata completeness
 - All tests must pass before proceeding to Phase 2
@@ -457,14 +472,16 @@ Redis Graph: breadcrumb_graph
   4. Verify results include metadata (pdca_id, agent_name, date, chunk_type)
 - **Success Criteria:** At least 5 results returned, all contain relevant keywords
 
-**B. Test Graph Traversal (Redis Graph)**
+**B. Test Graph Traversal (SQLite Graph)**
 - **Purpose:** Verify breadcrumb navigation via PRECEDES edges
 - **Test Cases:**
-  1. Query Redis Graph for all PDCA nodes (MATCH (p:PDCA) RETURN p.id LIMIT 5)
+  1. Query SQLite Graph for all PDCA nodes using sqlite_graph.py
   2. Verify at least 5 nodes returned
   3. Display node properties (pdca_id, agent, date)
-- **Success Criteria:** Nodes accessible, properties populated
-- **Note:** PRECEDES edges will be added later in Phase 4 evening loop
+  4. Test predecessor/successor queries
+  5. Test path finding between nodes
+- **Success Criteria:** Nodes accessible, properties populated, graph queries working
+- **Note:** PRECEDES edges will be added during indexing process
 
 **C. Test Temporal Queries (SQLite)**
 - **Purpose:** Verify fast date/agent filtering
@@ -500,11 +517,15 @@ Found 5 results:
   (showing abbreviated results)
 ✓ Semantic search working
 
-=== Testing Graph Traversal (Redis Graph) ===
+=== Testing Graph Traversal (SQLite Graph) ===
 Found 5 PDCA nodes:
   - 20241027-090000-SaveRestartAgent.ProcessOrchestration
   - 20241026-153000-BuilderAgent.ComponentDevelopment
   (showing sample nodes)
+
+Testing predecessor/successor queries:
+  - Predecessors of BuilderAgent: 1 found
+  - Successors of SaveRestartAgent: 1 found
 ✓ Graph traversal working
 
 === Testing Temporal Queries (SQLite) ===
@@ -539,7 +560,9 @@ ALL TESTS PASSED! ✓
 
 **Validation:**
 - [ ] Semantic search returns relevant results
-- [ ] Graph traversal finds PDCA nodes
+- [ ] SQLite Graph traversal finds PDCA nodes
+- [ ] Predecessor/successor queries work
+- [ ] Path finding between nodes works
 - [ ] Temporal queries work correctly
 - [ ] All metadata fields populated
 - [ ] All tests pass
@@ -631,27 +654,29 @@ Semantic Query Latency: 480ms
 Before proceeding to Phase 2, verify all items:
 
 ### Environment
-- [ ] Python 3.10+ installed and verified
-- [ ] Ollama installed (`ollama --version`)
-- [ ] ChromaDB installed and tested
-- [ ] Redis server running (`redis-cli ping`)
-- [ ] RedisGraph module loaded
-- [ ] SQLite available
-- [ ] All Python dependencies installed
+- [x] Python 3.10+ installed and verified
+- [x] Ollama installed (`ollama --version`)
+- [x] ChromaDB installed and tested
+- [x] Redis server running (`redis-cli ping`) - Optional
+- [x] SQLite available and tested
+- [x] SQLite Graph implementation working (`scripts/sqlite_graph.py`)
+- [x] All Python dependencies installed
 
 ### Data Indexing
-- [ ] 534 PDCAs indexed (verify count in ChromaDB)
-- [ ] ~2,670 PDCA chunks created
-- [ ] 3,477 TypeScript files indexed
+- [ ] 1,157 PDCAs indexed (verify count in ChromaDB)
+- [ ] ~5,785 PDCA chunks created
+- [ ] 5,372 TypeScript files indexed
 - [ ] 238 process docs indexed (if applicable)
 - [ ] 12K tool examples indexed (if files exist)
 - [ ] ChromaDB collections created: `pdca_historical`, `components`, `tool_examples`
-- [ ] Redis Graph contains PDCA nodes
-- [ ] SQLite database populated
+- [ ] SQLite Graph contains PDCA nodes and relationships
+- [ ] SQLite database populated with temporal data
 
 ### Validation
 - [ ] Semantic search returns relevant results (under 1 second)
-- [ ] Graph traversal works (PDCA nodes accessible)
+- [ ] SQLite Graph traversal works (PDCA nodes and relationships accessible)
+- [ ] Predecessor/successor queries work correctly
+- [ ] Path finding between nodes works
 - [ ] Temporal queries work (date/agent filtering)
 - [ ] Metadata completeness verified (15+ fields)
 - [ ] Test harness baseline established
@@ -668,8 +693,8 @@ Before proceeding to Phase 2, verify all items:
 
 **Phase 1 is complete when:**
 
-✓ RAG system operational with 3 tiers (ChromaDB, Redis Graph, SQLite)  
-✓ All 534 PDCAs queryable via semantic/graph/temporal methods  
+✓ RAG system operational with 3 tiers (ChromaDB, SQLite Graph, SQLite)  
+✓ All 1,157 PDCAs queryable via semantic/graph/temporal methods  
 ✓ Test queries return relevant results under 1 second  
 ✓ Metadata complete (15+ fields per chunk)  
 ✓ Environment ready for Phase 2 sample generation
@@ -680,10 +705,10 @@ Before proceeding to Phase 2, verify all items:
 
 ### Common Issues and Solutions
 
-**Issue: Redis Connection Error**
+**Issue: Redis Connection Error (Optional)**
 - **Symptom:** `Could not connect to Redis at localhost:6379`
-- **Solution:** Start Redis service for your OS (see section 1.4 for commands)
-- **Verification:** Run `redis-cli ping` should return PONG
+- **Solution:** Redis is optional for caching. Can skip or start Redis service (see section 1.4 for commands)
+- **Verification:** Run `redis-cli ping` should return PONG (optional)
 
 **Issue: ChromaDB Import Error**
 - **Symptom:** `No module named 'chromadb'`
@@ -704,9 +729,14 @@ Before proceeding to Phase 2, verify all items:
   - Consider upgrading RAM if consistently hitting limits
 
 **Issue: PDCA Count Mismatch**
-- **Symptom:** Found fewer than 534 PDCAs
-- **Solution:** Verify Web4Articles repository path is correct
+- **Symptom:** Found fewer than 1,157 PDCAs
+- **Solution:** Verify Web4Articles repository path is correct and on correct branch
 - **Verification:** Use find command to count `*.pdca.md` files
+
+**Issue: SQLite Graph Not Working**
+- **Symptom:** Graph queries fail or return no results
+- **Solution:** Ensure sqlite_graph.py is working, test with sample data
+- **Verification:** Run `python scripts/test_three_tier_rag.py` should pass
 
 ---
 
@@ -726,9 +756,9 @@ Once Phase 1 is complete:
 ## Phase 1 Summary
 
 **Deliverables:**
-- ✓ Complete three-tier RAG system (ChromaDB + Redis Graph + SQLite)
-- ✓ 534 PDCAs indexed (~2,670 chunks)
-- ✓ 3,477 TypeScript files indexed
+- ✓ Complete three-tier RAG system (ChromaDB + SQLite Graph + SQLite)
+- ✓ 1,157 PDCAs indexed (~5,785 chunks)
+- ✓ 5,372 TypeScript files indexed
 - ✓ 12K tool examples indexed
 - ✓ All queries validated and performant (<1 second)
 - ✓ Baseline metrics established
@@ -736,12 +766,14 @@ Once Phase 1 is complete:
 **Scripts Created:**
 - `scripts/initial_indexing.py` - Indexes all source data into RAG
 - `scripts/test_rag_queries.py` - Validates three-tier functionality
+- `scripts/sqlite_graph.py` - SQLite-based graph database implementation
+- `scripts/test_three_tier_rag.py` - Complete three-tier RAG test
 - `eval/baseline_test.py` - Establishes baseline metrics
 
 **Databases Created:**
 - `./chroma_db/` - ChromaDB persistent storage
-- `./pdca_timeline.db` - SQLite temporal database
-- Redis Graph: `breadcrumb_graph` - In-memory graph database
+- `./pdca_timeline.db` - SQLite temporal and graph database
+- SQLite Graph: `pdca_relationships` table - Graph relationships storage
 
 **Duration:** Flexible (1-2 weeks typical)  
 **Next Phase:** Phase 2 - Sample Generation
