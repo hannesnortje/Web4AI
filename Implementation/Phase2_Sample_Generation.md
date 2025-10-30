@@ -18,9 +18,9 @@ Phase 2 generates all training data by intelligently querying the RAG system est
 Before starting Phase 2, ensure Phase 1 is complete:
 
 - [ ] Phase 1 completed successfully
-- [ ] RAG system operational (ChromaDB + Redis Graph + SQLite)
-- [ ] 534 PDCAs indexed (~2,670 chunks)
-- [ ] 3,477 TypeScript files indexed
+- [ ] RAG system operational (ChromaDB + SQLite Graph + SQLite)
+- [ ] 1,157 PDCAs indexed (~5,785 chunks)
+- [ ] 5,372 TypeScript files indexed
 - [ ] 12K tool examples indexed
 - [ ] All validation tests passed
 
@@ -130,7 +130,7 @@ COMPLETE: 12000 style_core samples generated
 - Query ChromaDB `pdca_historical` collection for PDCA chunks
 - Generate 8K samples across 4 task type categories
 - Apply pattern distillation to reduce token count (400-600 tokens vs 1200-1800 full PDCA)
-- Optionally use Redis Graph to expand context via breadcrumb chains
+- Optionally use SQLite Graph to expand context via breadcrumb chains
 - Output samples in JSONL format with source tracking
 
 **Task Type Categories to Extract:**
@@ -346,7 +346,7 @@ COMPLETE: 5000 process_framework samples generated
 ## Step 2: Specialized Samples (9K samples)
 
 **Estimated Time:** 2-3 days  
-**Goal:** Generate domain_representatives (3K), style_refactor (3K), guardrails (2K), tool_awareness (1K)
+**Goal:** Generate domain_representatives (3K), style_refactor (3K), guardrails (2K), tool_awareness (1K), reporting_protocol (3K)
 
 ### 2.1 Generate domain_representatives.jsonl (3K samples)
 
@@ -546,13 +546,50 @@ COMPLETE: 3000 domain_representatives samples generated
 
 ---
 
+### 2.5 Generate reporting_protocol.jsonl (3K samples)
+
+**Objective:** Teach the structure and content of the Web4 reporting protocol.
+
+**Script Location:** `scripts/generate_reporting_protocol.py`
+
+**Requirements:**
+- Generate 3K samples from a predefined reporting protocol template
+- Cover all major sections: Introduction, Problem, Plan, Do, Check, Act, Lessons
+- Ensure consistency in formatting and structure
+- Output samples in JSONL format
+
+**Template:**
+```
+{
+  "instruction": "Generate a Web4 reporting protocol document",
+  "input": "PDCA ID: [pdca_id], Agent: [agent_name], Date: [date]",
+  "output": "Full Web4 reporting protocol document content",
+  "metadata": {
+    "pdca_id": "string",
+    "agent_name": "string",
+    "date": "string",
+    "source": "string"
+  }
+}
+```
+
+**Validation:**
+- [ ] `data/reporting_protocol.jsonl` created
+- [ ] 3K samples generated
+- [ ] All major sections present
+- [ ] Consistent formatting
+- [ ] No external references needed
+
+---
+
 **Step 2 Completion Checklist:**
 
 - [ ] domain_representatives.jsonl: 3K samples generated
 - [ ] style_refactor.jsonl: 3K samples generated
 - [ ] guardrails.jsonl: 2K samples generated
 - [ ] tool_awareness.jsonl: 1K samples generated
-- [ ] Total: 9K specialized samples
+- [ ] reporting_protocol.jsonl: 3K samples generated
+- [ ] Total: 12K specialized samples
 - [ ] All scripts run without errors
 
 ---
@@ -569,7 +606,7 @@ COMPLETE: 3000 domain_representatives samples generated
 **Script Location:** `scripts/generate_eval.py`
 
 **Requirements:**
-- Sample from all 7 training datasets
+- Sample from all 8 training datasets
 - Stratify sampling to represent all categories
 - Mark samples as `never_train: true`
 - Generate exactly 2K samples
@@ -583,7 +620,8 @@ COMPLETE: 3000 domain_representatives samples generated
 - style_refactor.jsonl: 150 samples (7.5% of 2K)
 - guardrails.jsonl: 100 samples (5% of 2K)
 - tool_awareness.jsonl: 50 samples (2.5% of 2K)
-- **Total:** 1,350 samples (then expand to 2K with balanced additions)
+- reporting_protocol.jsonl: 200 samples (10% of 2K)
+- **Total:** 1,550 samples (then expand to 2K with balanced additions)
 
 **Sample Selection Process:**
 1. Load each source JSONL file
@@ -633,7 +671,7 @@ COMPLETE: 2000 eval samples generated
 **Script Location:** `scripts/validate_samples.py`
 
 **Requirements:**
-- Validate all 8 JSONL files (7 training + 1 eval)
+- Validate all 9 JSONL files (8 training + 1 eval)
 - Check schema compliance for all samples
 - Count tokens using Qwen tokenizer
 - Verify sample counts match targets
@@ -652,6 +690,7 @@ COMPLETE: 2000 eval samples generated
   - style_refactor.jsonl: exactly 3,000
   - guardrails.jsonl: exactly 2,000
   - tool_awareness.jsonl: exactly 1,000
+  - reporting_protocol.jsonl: exactly 3,000
   - eval.jsonl: exactly 2,000
 - **Total:** 37,000 training + 2,000 eval = 39,000 samples
 
@@ -724,6 +763,11 @@ Validating All Samples
   ✓ Schema: All samples valid
   ✓ Tokens: 540,000 total, 540 avg/sample
 
+--- Validating reporting_protocol.jsonl ---
+  ✓ Count: 3000/3000
+  ✓ Schema: All samples valid
+  ✓ Tokens: 1,620,000 total, 540 avg/sample
+
 --- Validating eval.jsonl ---
   ✓ Count: 2000/2000
   ✓ Schema: All samples valid
@@ -763,6 +807,7 @@ Average Tokens/Sample: 498 (target: ~540) ✓
 - [ ] style_refactor.jsonl: 3K samples ✓
 - [ ] guardrails.jsonl: 2K samples ✓
 - [ ] tool_awareness.jsonl: 1K samples ✓
+- [ ] reporting_protocol.jsonl: 3K samples ✓
 
 ### Evaluation Set (3K total, 2K used)
 - [ ] eval.jsonl: 2K hold-out samples ✓
@@ -869,6 +914,7 @@ Once Phase 2 is complete:
 - `data/guardrails.jsonl` (2K samples)
 - `data/tool_awareness.jsonl` (1K samples)
 - `data/eval.jsonl` (2K samples - NEVER train)
+- `data/reporting_protocol.jsonl` (3K samples)
 
 **Duration:** Flexible (1-2 weeks typical)  
 **Next Phase:** Phase 3 - Training & Deployment

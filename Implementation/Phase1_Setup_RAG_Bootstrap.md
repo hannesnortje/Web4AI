@@ -347,10 +347,40 @@ LLM_Training/
        - `tool_ecosystem` (continue, cursor, custom)
        - `usage_pattern` (simple, intermediate, complex, edge_case)
        - `is_negative` (true for tool_neg.jsonl examples)
+       - `trained_in_adapter` (False initially)
+       - `training_batch` (empty string initially)
+       - `training_date` (empty string initially)
   4. If files don't exist, create placeholder collection and report 0 examples
   5. Report total tool examples indexed (0 if files missing)
 
-**F. SQLite Schema Creation**
+**F. TrainAI Topics Indexing Function**
+- **Purpose:** Index the 20 trainAI behavioral topics that form the core of the PDCA system
+- **Steps:**
+  1. Initialize ChromaDB collection `process_framework` (delete existing if present)
+  2. Load trainAI topics from `DefaultPDCA.ts` training topics (20 topics total)
+  3. For each trainAI topic:
+     - Extract topic content (title, description, key lessons, verification checklist)
+     - Generate embedding from combined content
+     - Add to ChromaDB with metadata:
+       - `topic_id` (dual-links, test-first, pdca, etc.)
+       - `category` (process, behavior, technical, etc.)
+       - `lesson_count` (number of key lessons)
+       - `checklist_items` (number of verification items)
+       - `trained_in_adapter` (False initially)
+       - `training_batch` (empty string initially)
+       - `training_date` (empty string initially)
+  4. Report total trainAI topics indexed (should be exactly 20)
+
+**G. PDCA Relationship Extraction Function**
+- **Purpose:** Extract breadcrumb relationships (PRECEDES, FOLLOWS) from PDCA content
+- **Steps:**
+  1. For each indexed PDCA, parse content for breadcrumb links
+  2. Look for patterns: `[YYYYMMDD-HHMMSS-AgentName.RoleName.pdca.md]`
+  3. Extract relationship type (PRECEDES, FOLLOWS) from context
+  4. Add relationships to SQLite Graph using `sqlite_graph.py` module
+  5. Report total relationships extracted
+
+**H. SQLite Schema Creation**
 - **Purpose:** Create temporal query database and graph relationships for fast queries
 - **Tables:** `pdcas` and `pdca_relationships`
 - **PDCAs Table Schema:**
@@ -378,7 +408,7 @@ LLM_Training/
   - `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 - **Indexes:** Create indexes on date, timestamp, agent_name, cmm_level, and graph relationships for fast queries
 
-**G. Main Orchestration**
+**I. Main Orchestration**
 - **Purpose:** Coordinate all indexing operations
 - **Flow:**
   1. Print banner and configuration
@@ -389,8 +419,10 @@ LLM_Training/
   6. Run PDCA indexing (returns total chunks)
   7. Run TypeScript indexing (returns total files)
   8. Run tool examples indexing (returns total examples)
-  9. Print summary statistics
-  10. Close database connections
+  9. Run trainAI topics indexing (returns total topics)
+  10. Run PDCA relationship extraction (returns total relationships)
+  11. Print summary statistics
+  12. Close database connections
 
 **Expected Output:**
 ```
@@ -417,12 +449,23 @@ Indexing tool_core.jsonl: 100%|████████| 10000/10000 [08:20<00:0
 Indexing tool_neg.jsonl: 100%|████████| 2000/2000 [01:40<00:00]
 ✓ Indexed 12,000 tool examples
 
+=== Indexing TrainAI Topics ===
+Found 20 trainAI topics
+Indexing TrainAI: 100%|████████| 20/20 [00:30<00:00]
+✓ Indexed 20 trainAI topics into process_framework collection
+
+=== Extracting PDCA Relationships ===
+Processing PDCAs: 100%|████████| 1157/1157 [01:15<00:00]
+✓ Extracted 2,314 PDCA relationships
+
 ============================================================
 INDEXING COMPLETE!
 ============================================================
 ✓ PDCAs: 5,785 chunks from 1,157 files
 ✓ TypeScript: 5,372 files
 ✓ Tools: 12,000 examples
+✓ TrainAI: 20 topics (process framework)
+✓ Relationships: 2,314 PDCA breadcrumb links
 
 ChromaDB: ./chroma_db
 SQLite: ./pdca_timeline.db
@@ -443,9 +486,12 @@ SQLite Graph: pdca_relationships table
 - [ ] Approximately 5,785 PDCA chunks indexed (may vary ±10%)
 - [ ] 5,372 TypeScript files indexed (exact count)
 - [ ] 12K tool examples indexed (if files exist)
+- [ ] 20 trainAI topics indexed (exact count)
+- [ ] PDCA relationships extracted and indexed
+- [ ] All content marked as `trained_in_adapter: false`
 - [ ] ChromaDB directory created at `./chroma_db`
 - [ ] SQLite database file created at `./pdca_timeline.db`
-- [ ] SQLite Graph contains nodes (verify with sqlite_graph.py test)
+- [ ] SQLite Graph contains nodes and relationships (verify with sqlite_graph.py test)
 ---
 
 ### 2.2 Verify Three-Tier Indexing
@@ -492,7 +538,25 @@ SQLite Graph: pdca_relationships table
   4. Measure query speed (should be <100ms)
 - **Success Criteria:** Temporal queries return results quickly with correct data
 
-**D. Test Metadata Completeness**
+**D. Test TrainAI Topics Retrieval**
+- **Purpose:** Verify trainAI topics are accessible via RAG queries
+- **Test Cases:**
+  1. Query: "How should I report task completion?"
+  2. Retrieve results from `process_framework` collection
+  3. Verify results include trainAI topics (dual-links, report, etc.)
+  4. Check metadata includes `topic_id`, `category`, `lesson_count`
+- **Success Criteria:** TrainAI topics returned for behavioral queries
+
+**E. Test PDCA Relationship Navigation**
+- **Purpose:** Verify breadcrumb navigation works via SQLite Graph
+- **Test Cases:**
+  1. Query SQLite Graph for PDCA relationships
+  2. Test predecessor/successor queries on specific PDCAs
+  3. Verify relationship types (PRECEDES, FOLLOWS) are correct
+  4. Test path finding between related PDCAs
+- **Success Criteria:** PDCA relationships navigable and accurate
+
+**F. Test Metadata Completeness**
 - **Purpose:** Ensure all required metadata fields are populated
 - **Test Cases:**
   1. Retrieve sample chunks from `pdca_historical` collection (limit 10)
@@ -500,7 +564,8 @@ SQLite Graph: pdca_relationships table
      - `chunk_type`, `chunk_index`, `pdca_id`
      - `agent_name`, `agent_role`, `date`, `timestamp`
      - `trained_in_adapter`, `training_batch`, `training_date`
-  3. Display sample metadata for inspection
+  3. Verify all content marked as `trained_in_adapter: false`
+  4. Display sample metadata for inspection
 - **Success Criteria:** All fields present in all sampled chunks
 
 **Expected Output:**
@@ -540,8 +605,27 @@ PDCAs by agent:
   (showing counts)
 ✓ Temporal queries working
 
+=== Testing TrainAI Topics Retrieval ===
+Query: How should I report task completion?
+Found 3 results:
+  1. report: Concise format with dual links
+  2. dual-links: GitHub + § notation format
+  3. chat-response: Behavioral patterns for reporting
+✓ TrainAI topics accessible
+
+=== Testing PDCA Relationship Navigation ===
+Found 2,314 PDCA relationships:
+  - PRECEDES: 1,157 relationships
+  - FOLLOWS: 1,157 relationships
+
+Testing navigation:
+  - Predecessors of BuilderAgent: 15 found
+  - Successors of SaveRestartAgent: 8 found
+✓ PDCA relationships navigable
+
 === Testing Metadata Completeness ===
 ✓ All 8 required metadata fields present
+✓ All content marked as trained_in_adapter: false
 
 Sample metadata:
   - chunk_type: pdca_plan
@@ -564,7 +648,10 @@ ALL TESTS PASSED! ✓
 - [ ] Predecessor/successor queries work
 - [ ] Path finding between nodes works
 - [ ] Temporal queries work correctly
+- [ ] TrainAI topics accessible via RAG queries
+- [ ] PDCA relationships navigable and accurate
 - [ ] All metadata fields populated
+- [ ] All content marked as trained_in_adapter: false
 - [ ] All tests pass
 
 ---
@@ -666,9 +753,10 @@ Before proceeding to Phase 2, verify all items:
 - [ ] 1,157 PDCAs indexed (verify count in ChromaDB)
 - [ ] ~5,785 PDCA chunks created
 - [ ] 5,372 TypeScript files indexed
-- [ ] 238 process docs indexed (if applicable)
+- [ ] 20 trainAI topics indexed (process framework)
 - [ ] 12K tool examples indexed (if files exist)
-- [ ] ChromaDB collections created: `pdca_historical`, `components`, `tool_examples`
+- [ ] PDCA relationships extracted and indexed
+- [ ] ChromaDB collections created: `pdca_historical`, `components`, `tool_examples`, `process_framework`
 - [ ] SQLite Graph contains PDCA nodes and relationships
 - [ ] SQLite database populated with temporal data
 
@@ -678,6 +766,9 @@ Before proceeding to Phase 2, verify all items:
 - [ ] Predecessor/successor queries work correctly
 - [ ] Path finding between nodes works
 - [ ] Temporal queries work (date/agent filtering)
+- [ ] TrainAI topics accessible via RAG queries
+- [ ] PDCA relationships navigable and accurate
+- [ ] All content marked as trained_in_adapter: false
 - [ ] Metadata completeness verified (15+ fields)
 - [ ] Test harness baseline established
 - [ ] Query performance acceptable (<1000ms)
@@ -695,6 +786,9 @@ Before proceeding to Phase 2, verify all items:
 
 ✓ RAG system operational with 3 tiers (ChromaDB, SQLite Graph, SQLite)  
 ✓ All 1,157 PDCAs queryable via semantic/graph/temporal methods  
+✓ 20 trainAI topics accessible via RAG queries (process framework)  
+✓ PDCA relationships navigable via graph traversal  
+✓ All content marked as trained_in_adapter: false (ready for LoRA training)  
 ✓ Test queries return relevant results under 1 second  
 ✓ Metadata complete (15+ fields per chunk)  
 ✓ Environment ready for Phase 2 sample generation
@@ -738,6 +832,21 @@ Before proceeding to Phase 2, verify all items:
 - **Solution:** Ensure sqlite_graph.py is working, test with sample data
 - **Verification:** Run `python scripts/test_three_tier_rag.py` should pass
 
+**Issue: TrainAI Topics Not Found**
+- **Symptom:** Process framework queries return no results
+- **Solution:** Verify trainAI topics were extracted from DefaultPDCA.ts correctly
+- **Verification:** Check process_framework collection has 20 topics
+
+**Issue: PDCA Relationships Not Extracted**
+- **Symptom:** Graph navigation shows no relationships
+- **Solution:** Check breadcrumb link parsing in PDCA content
+- **Verification:** Verify PRECEDES/FOLLOWS links are properly formatted in PDCAs
+
+**Issue: Training Markers Not Set**
+- **Symptom:** Content not marked as trained_in_adapter: false
+- **Solution:** Ensure all indexing functions set training markers correctly
+- **Verification:** Check sample metadata includes trained_in_adapter field
+
 ---
 
 ## Next Steps
@@ -759,7 +868,10 @@ Once Phase 1 is complete:
 - ✓ Complete three-tier RAG system (ChromaDB + SQLite Graph + SQLite)
 - ✓ 1,157 PDCAs indexed (~5,785 chunks)
 - ✓ 5,372 TypeScript files indexed
+- ✓ 20 trainAI topics indexed (process framework)
 - ✓ 12K tool examples indexed
+- ✓ PDCA relationships extracted and navigable
+- ✓ All content marked as trained_in_adapter: false
 - ✓ All queries validated and performant (<1 second)
 - ✓ Baseline metrics established
 
@@ -772,6 +884,10 @@ Once Phase 1 is complete:
 
 **Databases Created:**
 - `./chroma_db/` - ChromaDB persistent storage
+  - `pdca_historical` - PDCA chunks and metadata
+  - `components` - TypeScript files and patterns
+  - `tool_examples` - Tool usage examples
+  - `process_framework` - TrainAI behavioral topics
 - `./pdca_timeline.db` - SQLite temporal and graph database
 - SQLite Graph: `pdca_relationships` table - Graph relationships storage
 
