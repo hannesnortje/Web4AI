@@ -1,0 +1,35 @@
+[tool.poetry]
+name = "web4ai-training"
+version = "0.1.0"
+description = "Web4AI LLM Training Pipeline with RAG System"
+authors = ["Marcel Donges <marcel.donges@ceruleancircle.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.12"
+# Core ML Libraries
+transformers = "4.36.0"
+peft = "0.7.1"
+torch = "2.1.2"
+accelerate = "0.25.0"
+bitsandbytes = "0.41.3"
+
+# Vector DB & Graph
+chromadb = "0.4.18"
+sentence-transformers = "2.2.2"
+redis = "5.0.1"
+
+# Data Processing
+datasets = "2.15.0"
+jsonschema = "4.20.0"
+tqdm = "4.66.1"
+numpy = "^1.24,<2.0"
+
+# Utilities
+python-dotenv = "1.0.0"
+pyyaml = "6.0.1"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
